@@ -1,20 +1,46 @@
-- name : Configure Docker on EC2 Instances
-  hosts : all
+- name: Configure Docker and Deploy InsuranceApp
+  hosts: all
   become: true
-  connection : ssh
-  tasks : 
-  - name: updating apt
-    command : sudo apt-get update
+  tasks:
 
-  - name : Install Docker
-    command : sudo apt-get install -y docker.io
-    become : yes
-    become_user : root
+  - name: Update apt package index
+    apt:
+      update_cache: yes
 
-  - name : Start Docker Service
-    command : sudo systemctl start docker
-    become : yes
-    become_user : root
+  - name: Install required packages
+    apt:
+      name:
+        - docker.io
+        - unzip
+      state: present
 
-  - name: Deploy Docker Container
-    command: docker run -itd -p 8084:8081 shubhamkushwah123/insure-me:3.0
+  - name: Start and enable Docker service
+    systemd:
+      name: docker
+      state: started
+      enabled: yes
+
+  - name: Add current user to Docker group (optional)
+    user:
+      name: ansibleadmin
+      groups: docker
+      append: yes
+
+  - name: Pull the latest Docker image
+    docker_image:
+      name: revati21/insuranceapp-eta-app
+      source: pull
+
+  - name: Remove any existing container
+    docker_container:
+      name: insuranceapp-eta-app
+      state: absent
+
+  - name: Deploy the Docker container
+    docker_container:
+      name: insuranceapp-eta-app
+      image: revati21/insuranceapp-eta-app
+      state: started
+      restart_policy: always
+      ports:
+        - "8084:8081"  
